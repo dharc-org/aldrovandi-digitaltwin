@@ -40,9 +40,7 @@ services:
     ports:
       - "${FUSEKI_PORT:-3030}:3030"
     volumes:
-      # Dati TTL da caricare (metti chad_kg.ttl e chad-ap.ttl qui)
       - ./data:/staging:ro
-      # Persistenza del database Fuseki
       - fuseki-data:/fuseki/databases
     environment:
       - JAVA_OPTIONS=-Xmx${FUSEKI_JAVA_XMX:-6g} -Xms${FUSEKI_JAVA_XMS:-4g}
@@ -102,15 +100,12 @@ services:
     ports:
       - "${ATON_PORT:-8080}:8080"
     volumes:
-      # Contenuti Aldrovandi (inserisci qui i file di Marcello)
       - ./aton-content:/app/aton/wapps/aldrovandi/content
     depends_on:
       fuseki:
         condition: service_healthy
     environment:
-      # Endpoint SPARQL - usa il nome del servizio Docker
       - SPARQL_ENDPOINT=http://fuseki:3030/chad-kg/sparql
-      # Per sostituire URL hardcoded di MELODY nei JS
       - SERVER_HOST=${SERVER_HOST}
       - MELODY_PORT=${MELODY_PORT:-5010}
       - BASE_PATH=${BASE_PATH:-}
