@@ -1,0 +1,7 @@
+# Cartella dati TTL
+
+Inserisci qui i file:
+- `chad_kg.ttl`
+- `chad-ap.ttl`
+
+Questi verranno caricati automaticamente in Fuseki al primo avvio.

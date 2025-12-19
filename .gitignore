@@ -1,0 +1,5 @@
+aton-content/*
+*.tar
+*.tar.gz
+.env
+.DS_Store
