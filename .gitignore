@@ -1,5 +1,12 @@
+# Aton content folder and its contents, except for .gitkeep
 aton-content/*
+!aton-content/.gitkeep
+
+# Ignore common temporary and build files
 *.tar
 *.tar.gz
+
+
+# Other common ignores
 .env
 .DS_Store
