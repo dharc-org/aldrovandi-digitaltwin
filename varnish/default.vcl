@@ -72,6 +72,7 @@ sub vcl_backend_response {
         set beresp.grace = 1d;
         unset beresp.http.Set-Cookie;
         set beresp.http.Cache-Control = "public, max-age=604800";
+        return (deliver);
     }
     
     # Cache molto lunga per assets 3D (14 giorni) - sono pesanti e cambiano raramente
@@ -80,6 +81,7 @@ sub vcl_backend_response {
         set beresp.grace = 2d;
         unset beresp.http.Set-Cookie;
         set beresp.http.Cache-Control = "public, max-age=1209600";
+        return (deliver);
     }
     
     # Cache per audio/video (7 giorni)
@@ -88,15 +90,17 @@ sub vcl_backend_response {
         set beresp.grace = 1d;
         unset beresp.http.Set-Cookie;
         set beresp.http.Cache-Control = "public, max-age=604800";
+        return (deliver);
     }
     
-    # Cache breve per JSON API (5 minuti) - dati che possono cambiare
-    # Preserva header CORS per chiamate API cross-origin
-    if (bereq.url ~ "\.json(\?.*)?$" || bereq.url ~ "/api/" || bereq.url ~ "^/melody") {
+    # Cache breve per JSON API e chiamate MELODY (5 minuti)
+    # ESCLUSI i file statici sotto /melody/static/ che hanno già il loro TTL
+    if (bereq.url ~ "^/melodycall" || (bereq.url ~ "/api/" && bereq.url !~ "/static/")) {
         set beresp.ttl = 5m;
         set beresp.grace = 1m;
         # NON rimuovere Set-Cookie per API (potrebbe contenere session data)
         # Gli header Access-Control-* vengono preservati automaticamente
+        return (deliver);
     }
     
     # Cache breve per HTML (1 minuto)
