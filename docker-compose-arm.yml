@@ -23,11 +23,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '${VARNISH_CPU_LIMIT:-1}'
-          memory: ${VARNISH_MEM_LIMIT:-1024M}
+          cpus: '${VARNISH_CPU_LIMIT:-2}'
+          memory: ${VARNISH_MEM_LIMIT:-4G}
         reservations:
           cpus: '${VARNISH_CPU_RESERVATION:-1}'
-          memory: ${VARNISH_MEM_RESERVATION:-512M}
+          memory: ${VARNISH_MEM_RESERVATION:-3G}
 
   # ============================================
   # FUSEKI - SPARQL Endpoint
@@ -117,11 +117,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '${ATON_CPU_LIMIT:-2}'
-          memory: ${ATON_MEM_LIMIT:-4G}
+          cpus: '${ATON_CPU_LIMIT:-4}'
+          memory: ${ATON_MEM_LIMIT:-8G}
         reservations:
-          cpus: '${ATON_CPU_RESERVATION:-1}'
-          memory: ${ATON_MEM_RESERVATION:-2G}
+          cpus: '${ATON_CPU_RESERVATION:-2}'
+          memory: ${ATON_MEM_RESERVATION:-4G}
 
 volumes:
   fuseki-data:

@@ -26,7 +26,7 @@ services:
           memory: ${VARNISH_MEM_LIMIT:-4G}
         reservations:
           cpus: '${VARNISH_CPU_RESERVATION:-1}'
-          memory: ${VARNISH_MEM_RESERVATION:-2G}
+          memory: ${VARNISH_MEM_RESERVATION:-3G}
 
   # ============================================
   # FUSEKI - SPARQL Endpoint
@@ -43,7 +43,7 @@ services:
       - ./data:/staging:ro
       - fuseki-data:/fuseki/databases
     environment:
-      - JAVA_OPTIONS=-Xmx${FUSEKI_JAVA_XMX:-6g} -Xms${FUSEKI_JAVA_XMS:-4g}
+      - JAVA_OPTIONS=-Xmx${FUSEKI_JAVA_XMX:-2g} -Xms${FUSEKI_JAVA_XMS:-1g}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3030/$/ping"]
@@ -53,10 +53,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '${FUSEKI_CPU_LIMIT:-2}'
-          memory: ${FUSEKI_MEM_LIMIT:-4G}
+          cpus: '${FUSEKI_CPU_LIMIT:-4}'
+          memory: ${FUSEKI_MEM_LIMIT:-8G}
         reservations:
-          cpus: '${FUSEKI_CPU_RESERVATION:-1}'
+          cpus: '${FUSEKI_CPU_RESERVATION:-2}'
           memory: ${FUSEKI_MEM_RESERVATION:-4G}
 
   # ============================================
