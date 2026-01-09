@@ -46,7 +46,8 @@ sub vcl_recv {
     }
     
     # Rimuovi cookies per risorse statiche (permette caching)
-    if (req.url ~ "\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|gltf|glb|obj|mtl|bin|hdr|mp3|mp4|webm|ogg|json)(\?.*)?$") {
+    # (?i) = case-insensitive per gestire .glb/.GLB, .jpg/.JPG, ecc.
+    if (req.url ~ "(?i)\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|gltf|glb|obj|mtl|bin|hdr|mp3|mp4|webm|ogg|json)(\?.*)?$") {
         unset req.http.Cookie;
         return (hash);
     }
@@ -56,7 +57,7 @@ sub vcl_recv {
         return (pass);
     }
     
-    # Cachea GET e HEAD
+    # Cachea solo GET e HEAD (no POST)
     if (req.method != "GET" && req.method != "HEAD") {
         return (pass);
     }
@@ -67,7 +68,8 @@ sub vcl_recv {
 # Gestione risposta dal backend
 sub vcl_backend_response {
     # Cache lunga per risorse statiche (7 giorni)
-    if (bereq.url ~ "\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|json|eot)(\?.*)?$") {
+    # (?i) = case-insensitive
+    if (bereq.url ~ "(?i)\.(css|js|json|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)(\?.*)?$") {
         set beresp.ttl = 7d;
         set beresp.grace = 1d;
         unset beresp.http.Set-Cookie;
@@ -76,7 +78,8 @@ sub vcl_backend_response {
     }
     
     # Cache molto lunga per assets 3D (14 giorni) - sono pesanti e cambiano raramente
-    if (bereq.url ~ "\.(gltf|glb|obj|mtl|bin|hdr)(\?.*)?$") {
+    # (?i) = case-insensitive per .glb/.GLB, .gltf/.GLTF, ecc.
+    if (bereq.url ~ "(?i)\.(gltf|glb|obj|mtl|bin|hdr)(\?.*)?$") {
         set beresp.ttl = 14d;
         set beresp.grace = 2d;
         unset beresp.http.Set-Cookie;
@@ -85,21 +88,12 @@ sub vcl_backend_response {
     }
     
     # Cache per audio/video (7 giorni)
-    if (bereq.url ~ "\.(mp3|mp4|webm|ogg|wav)(\?.*)?$") {
+    # (?i) = case-insensitive
+    if (bereq.url ~ "(?i)\.(mp3|mp4|webm|ogg|wav)(\?.*)?$") {
         set beresp.ttl = 7d;
         set beresp.grace = 1d;
         unset beresp.http.Set-Cookie;
         set beresp.http.Cache-Control = "public, max-age=604800";
-        return (deliver);
-    }
-    
-    # Cache breve per JSON API e chiamate MELODY (5 minuti)
-    # ESCLUSI i file statici sotto /melody/static/ che hanno già il loro TTL
-    if (bereq.url ~ "^/melodycall" || (bereq.url ~ "/api/" && bereq.url !~ "/static/")) {
-        set beresp.ttl = 5m;
-        set beresp.grace = 1m;
-        # NON rimuovere Set-Cookie per API (potrebbe contenere session data)
-        # Gli header Access-Control-* vengono preservati automaticamente
         return (deliver);
     }
     
