@@ -34,17 +34,6 @@ sub vcl_recv {
         set req.backend_hint = aton;
     }
     
-    # Normalizza Accept-Encoding per migliorare cache hit rate
-    if (req.http.Accept-Encoding) {
-        if (req.http.Accept-Encoding ~ "gzip") {
-            set req.http.Accept-Encoding = "gzip";
-        } elsif (req.http.Accept-Encoding ~ "deflate") {
-            set req.http.Accept-Encoding = "deflate";
-        } else {
-            unset req.http.Accept-Encoding;
-        }
-    }
-    
     # Rimuovi cookies per risorse statiche (permette caching)
     if (req.url ~ "\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|gltf|glb|obj|mtl|bin|hdr|mp3|mp4|webm|ogg|json)(\?.*)?$") {
         unset req.http.Cookie;
@@ -91,12 +80,9 @@ sub vcl_backend_response {
     }
     
     # Cache breve per JSON API (5 minuti) - dati che possono cambiare
-    # Preserva header CORS per chiamate API cross-origin
-    if (bereq.url ~ "\.json(\?.*)?$" || bereq.url ~ "/api/" || bereq.url ~ "^/melody") {
+    if (bereq.url ~ "\.json(\?.*)?$" || bereq.url ~ "/api/") {
         set beresp.ttl = 5m;
         set beresp.grace = 1m;
-        # NON rimuovere Set-Cookie per API (potrebbe contenere session data)
-        # Gli header Access-Control-* vengono preservati automaticamente
     }
     
     # Cache breve per HTML (1 minuto)
