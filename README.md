@@ -11,6 +11,12 @@ Services:
 - **Varnish**: Cache layer for static resources (CSS, JS, 3D assets, images)
 
 ---
+## Offline install with local images
+
+For deploying the Digital Twin on an offline server, check out:
+./docs/offline-installation.md
+
+
 
 ## Setup on INTEL processors (with internet access)
 
