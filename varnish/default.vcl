@@ -67,7 +67,7 @@ sub vcl_recv {
 # Gestione risposta dal backend
 sub vcl_backend_response {
     # Cache lunga per risorse statiche (7 giorni)
-    if (bereq.url ~ "\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)(\?.*)?$") {
+    if (bereq.url ~ "\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|json|eot)(\?.*)?$") {
         set beresp.ttl = 7d;
         set beresp.grace = 1d;
         unset beresp.http.Set-Cookie;

@@ -6,7 +6,6 @@ echo "=== ATON Framework - Aldrovandi ==="
 # Configura endpoint SPARQL se necessario
 if [ -n "$SPARQL_ENDPOINT" ]; then
     echo "Configurazione SPARQL endpoint: $SPARQL_ENDPOINT"
-    
     # Esegui il patch per aggiornare l'endpoint nei file JS
     node /patch-sparql.js "$SPARQL_ENDPOINT" || true
 fi
@@ -23,8 +22,8 @@ fi
 if [ -n "$SERVER_HOST" ]; then
     echo "Configurazione URL MELODY..."
     
-    # Usa MELODY_PUBLIC_PORT se definita, altrimenti MELODY_PORT
-    PUBLIC_PORT="${MELODY_PUBLIC_PORT:-$MELODY_PORT}"
+    # Usa MELODY_PUBLIC_PORT se definita, altrimenti VARNISH_PORT, altrimenti MELODY_PORT
+    PUBLIC_PORT="${MELODY_PUBLIC_PORT:-${VARNISH_PORT:-$MELODY_PORT}}"
     
     # Base path (es: /aldrovandi) - default vuoto
     BASE_PATH="${BASE_PATH:-}"
@@ -46,65 +45,46 @@ if [ -n "$SERVER_HOST" ]; then
         echo "URL MELODY: ${MELODY_URL}"
     fi
     
-    # Sostituisci in tutti i file js, json, html
-    # Sostituisce http://127.0.0.1:5000/melody con il nuovo URL
-    find /app/aton/wapps/aldrovandi \( -name "*.js" -o -name "*.json" -o -name "*.html" \) -exec \
-        sed -i "s|http://127.0.0.1:5000/melody|${MELODY_URL}|g" {} \;
-    echo "URL sostituiti in $(find /app/aton/wapps/aldrovandi \( -name "*.js" -o -name "*.json" -o -name "*.html" \) | wc -l) file"
+    echo "Sostituzione URL MELODY in tutti i file..."
+    
+    # Trova tutti i file da patchare
+    FILES=$(find /app/aton/wapps/aldrovandi \( -name "*.js" -o -name "*.json" -o -name "*.html" \))
+    
+    for file in $FILES; do
+        # ========================================
+        # PATTERN UNIVERSALI (sempre eseguiti)
+        # ========================================
+        
+        # Pattern 1-4: Sostituzioni base per localhost e 127.0.0.1 con porte 5000/5010
+        sed -i "s|http://127.0.0.1:5000/melody|${MELODY_URL}|g" "$file"
+        sed -i "s|http://127.0.0.1:5010/melody|${MELODY_URL}|g" "$file"
+        sed -i "s|http://localhost:5000/melody|${MELODY_URL}|g" "$file"
+        sed -i "s|http://localhost:5010/melody|${MELODY_URL}|g" "$file"
+        
+        # Pattern 5-8: URL senza schema e catch-all per porte
+        sed -i "s|localhost:5000/melody|${SERVER_HOST}${BASE_PATH}${MELODY_PATH}|g" "$file"
+        sed -i "s|localhost:5010/melody|${SERVER_HOST}${BASE_PATH}${MELODY_PATH}|g" "$file"
+        sed -i "s|:5000/melody|${BASE_PATH}${MELODY_PATH}|g" "$file"
+        sed -i "s|:5010/melody|${BASE_PATH}${MELODY_PATH}|g" "$file"
+        
+        # ========================================
+        # PATTERN NGINX-SPECIFIC (solo in produzione)
+        # ========================================
+        if [ -n "$BASE_PATH" ] || [ "$MELODY_PATH" != "/melody" ]; then
+            # Rimuovi :5010 e forza HTTPS per nginx
+            sed -i "s|http://\([^:]*\):5010\(${BASE_PATH}${MELODY_PATH}\)|https://\1\2|g" "$file"
+            
+            # Sostituisci http con https per dominio pubblico
+            sed -i "s|http://${SERVER_HOST}${BASE_PATH}${MELODY_PATH}|${MELODY_URL}|g" "$file"
+            
+            # Fix path specifici nginx (aldrovandi/melodycall)
+            sed -i "s|:5010/aldrovandi/melodycall|${BASE_PATH}${MELODY_PATH}|g" "$file"
+        fi
+    done
+    
+    FILE_COUNT=$(echo "$FILES" | wc -l)
+    echo "URL sostituiti in ${FILE_COUNT} file"
 fi
-
-
-#uncomment per nginx reverse proxy
-# FILES=$(find /app/aton/wapps/aldrovandi \( -name "*.js" -o -name "*.json" -o -name "*.html" \))
-
-# for file in $FILES; do
-#     # Pattern 1: http://127.0.0.1:5000/melody -> MELODY_URL
-#     sed -i "s|http://127.0.0.1:5000/melody|${MELODY_URL}|g" "$file"
-    
-#     # Pattern 2: http://localhost:5000/melody -> MELODY_URL
-#     sed -i "s|http://localhost:5000/melody|${MELODY_URL}|g" "$file"
-    
-#     # Pattern 3: Rimuovi :5010 da qualsiasi URL che contiene melodycall
-#     sed -i "s|http://\([^:]*\):5010\(${BASE_PATH}${MELODY_PATH}\)|https://\1\2|g" "$file"
-    
-#     # Pattern 4: Rimuovi http:// e sostituisci con https:// per il dominio pubblico
-#     sed -i "s|http://${SERVER_HOST}${BASE_PATH}${MELODY_PATH}|${MELODY_URL}|g" "$file"
-    
-#     # Pattern 5: localhost:5000/melody (senza http/https)
-#     sed -i "s|localhost:5000/melody|${SERVER_HOST}${BASE_PATH}${MELODY_PATH}|g" "$file"
-    
-#     # Pattern 6: qualsiasi riferimento a :5010 seguito da aldrovandi/melodycall
-#     sed -i "s|:5010/aldrovandi/melodycall|/aldrovandi/melodycall|g" "$file"
-# done
-# echo "Creazione symlink per case-insensitivity GLB/glb..."
-# CONTENT_DIR="/app/aton/wapps/aldrovandi/content"
-
-# if [ -d "$CONTENT_DIR" ]; then
-#     cd "$CONTENT_DIR"
-    
-#     # Per ogni .glb crea symlink .GLB se non esiste
-#     find . -name "*.glb" -type f | while read f; do
-#         base=$(basename "$f")
-#         target="${f%.glb}.GLB"
-#         if [ ! -e "$target" ]; then
-#             ln -s "$base" "$target" 2>/dev/null && echo "  Link: $target -> $base"
-#         fi
-#     done
-
-#     # Per ogni .GLB crea symlink .glb se non esiste  
-#     find . -name "*.GLB" -type f | while read f; do
-#         base=$(basename "$f")
-#         target="${f%.GLB}.glb"
-#         if [ ! -e "$target" ]; then
-#             ln -s "$base" "$target" 2>/dev/null && echo "  Link: $target -> $base"
-#         fi
-#     done
-    
-#     echo "Symlink case-insensitivity completati"
-# fi
-
-
-
 
 # ============================================
 # PATCH BUG FIX per main.js
@@ -129,6 +109,38 @@ if [ -f "$MAINJS" ]; then
     echo "Patch applicati a main.js"
 else
     echo "ATTENZIONE: main.js non trovato, patch non applicati"
+fi
+
+# ============================================
+# FIX CASE SENSITIVITY - crea symlink bidirezionali per .glb/.GLB
+# ============================================
+echo "Creazione symlink per case-insensitivity GLB/glb..."
+CONTENT_DIR="/app/aton/wapps/aldrovandi/content"
+
+if [ -d "$CONTENT_DIR" ]; then
+    cd "$CONTENT_DIR"
+    
+    # Per ogni .glb crea symlink .GLB se non esiste
+    find . -name "*.glb" -type f | while read f; do
+        base=$(basename "$f")
+        target="${f%.glb}.GLB"
+        if [ ! -e "$target" ]; then
+            ln -s "$base" "$target" 2>/dev/null && echo "  Link: $target -> $base"
+        fi
+    done
+
+    # Per ogni .GLB crea symlink .glb se non esiste  
+    find . -name "*.GLB" -type f | while read f; do
+        base=$(basename "$f")
+        target="${f%.GLB}.glb"
+        if [ ! -e "$target" ]; then
+            ln -s "$base" "$target" 2>/dev/null && echo "  Link: $target -> $base"
+        fi
+    done
+    
+    echo "Symlink case-insensitivity completati"
+else
+    echo "ATTENZIONE: cartella content non trovata"
 fi
 
 echo "Avvio ATON su porta 8080 (production)..."
