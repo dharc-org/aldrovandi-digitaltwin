@@ -53,6 +53,59 @@ if [ -n "$SERVER_HOST" ]; then
     echo "URL sostituiti in $(find /app/aton/wapps/aldrovandi \( -name "*.js" -o -name "*.json" -o -name "*.html" \) | wc -l) file"
 fi
 
+
+#uncomment per nginx reverse proxy
+# FILES=$(find /app/aton/wapps/aldrovandi \( -name "*.js" -o -name "*.json" -o -name "*.html" \))
+
+# for file in $FILES; do
+#     # Pattern 1: http://127.0.0.1:5000/melody -> MELODY_URL
+#     sed -i "s|http://127.0.0.1:5000/melody|${MELODY_URL}|g" "$file"
+    
+#     # Pattern 2: http://localhost:5000/melody -> MELODY_URL
+#     sed -i "s|http://localhost:5000/melody|${MELODY_URL}|g" "$file"
+    
+#     # Pattern 3: Rimuovi :5010 da qualsiasi URL che contiene melodycall
+#     sed -i "s|http://\([^:]*\):5010\(${BASE_PATH}${MELODY_PATH}\)|https://\1\2|g" "$file"
+    
+#     # Pattern 4: Rimuovi http:// e sostituisci con https:// per il dominio pubblico
+#     sed -i "s|http://${SERVER_HOST}${BASE_PATH}${MELODY_PATH}|${MELODY_URL}|g" "$file"
+    
+#     # Pattern 5: localhost:5000/melody (senza http/https)
+#     sed -i "s|localhost:5000/melody|${SERVER_HOST}${BASE_PATH}${MELODY_PATH}|g" "$file"
+    
+#     # Pattern 6: qualsiasi riferimento a :5010 seguito da aldrovandi/melodycall
+#     sed -i "s|:5010/aldrovandi/melodycall|/aldrovandi/melodycall|g" "$file"
+# done
+# echo "Creazione symlink per case-insensitivity GLB/glb..."
+# CONTENT_DIR="/app/aton/wapps/aldrovandi/content"
+
+# if [ -d "$CONTENT_DIR" ]; then
+#     cd "$CONTENT_DIR"
+    
+#     # Per ogni .glb crea symlink .GLB se non esiste
+#     find . -name "*.glb" -type f | while read f; do
+#         base=$(basename "$f")
+#         target="${f%.glb}.GLB"
+#         if [ ! -e "$target" ]; then
+#             ln -s "$base" "$target" 2>/dev/null && echo "  Link: $target -> $base"
+#         fi
+#     done
+
+#     # Per ogni .GLB crea symlink .glb se non esiste  
+#     find . -name "*.GLB" -type f | while read f; do
+#         base=$(basename "$f")
+#         target="${f%.GLB}.glb"
+#         if [ ! -e "$target" ]; then
+#             ln -s "$base" "$target" 2>/dev/null && echo "  Link: $target -> $base"
+#         fi
+#     done
+    
+#     echo "Symlink case-insensitivity completati"
+# fi
+
+
+
+
 # ============================================
 # PATCH BUG FIX per main.js
 # ============================================
