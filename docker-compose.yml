@@ -99,8 +99,10 @@ services:
     container_name: aldrovandi-aton
     ports:
       - "${ATON_PORT:-8080}:8080"
+      - "${ATON_VR_PORT:-8083}:8083"
     volumes:
       - ./aton-content:/app/aton/wapps/aldrovandi/content
+      - ./aton-ssl:/app/aton/ssl
     depends_on:
       fuseki:
         condition: service_healthy

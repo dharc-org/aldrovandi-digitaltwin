@@ -2,6 +2,10 @@
 aton-content/*
 !aton-content/.gitkeep
 
+# SSL certificates (generati automaticamente)
+aton-ssl/
+!aton-ssl/.gitkeep
+
 # Ignore common temporary and build files
 *.tar
 *.tar.gz

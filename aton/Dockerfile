@@ -4,10 +4,11 @@ FROM node:20-slim
 LABEL maintainer="OpenCitations Team"
 LABEL description="ATON 3D Framework con progetto Aldrovandi"
 
-# Installa dipendenze di sistema
+# Installa dipendenze di sistema (AGGIUNTO openssl)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \
+    openssl \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
@@ -33,6 +34,6 @@ COPY entrypoint.sh /entrypoint.sh
 COPY patch-sparql.js /patch-sparql.js
 RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
-EXPOSE 8080
+EXPOSE 8080 8083
 
 ENTRYPOINT ["/entrypoint.sh"]
