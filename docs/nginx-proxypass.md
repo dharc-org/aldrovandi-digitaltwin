@@ -1,18 +1,16 @@
 # Nginx Configuration for Aldrovandi Digital Twin
 
-This guide explains how to configure Nginx as a reverse proxy to route traffic directly to ATON HTTPS (port 8083) in production, bypassing Varnish cache.
+This guide explains how to configure Nginx as a reverse proxy with path-based routing:
+- **Normal mode** (with cache): `/aldrovandi/` → Varnish → ATON:8080
+- **VR mode** (HTTPS direct): `/aldrovandi-vr/` → ATON:8083
 
 ## Architecture
 
 ```
-Browser → Nginx:443 (SSL) → ATON:8083 (HTTPS direct)
-                          ↘ MELODY:5010 (HTTP)
+Browser → Nginx:443 (SSL) → 
+    ├─ /aldrovandi/ → Varnish:8085 (cache) → ATON:8080 (HTTP)
+    └─ /aldrovandi-vr/ → ATON:8083 (HTTPS direct, no cache)
 ```
-
-**Benefits:**
-- Simplified setup (no Varnish layer)
-- Direct HTTPS connection enables WebXR/VR features
-- Single routing path for all traffic
 
 ## Production Environment (.env)
 
@@ -26,12 +24,19 @@ MELODY_PATH=/melodycall
 MELODY_PUBLIC_PORT=443
 
 # Service ports (internal Docker)
+VARNISH_PORT=8085
 FUSEKI_PORT=3030
 MELODY_PORT=5010
-ATON_PORT=8080      # HTTP (not used in production)
-ATON_VR_PORT=8083   # HTTPS (used by Nginx)
+ATON_PORT=8080       # HTTP (normal mode via Varnish)
+ATON_VR_PORT=8083    # HTTPS (VR mode direct)
 
-# NOTE: Varnish not used in this configuration
+# ============================================
+# RESOURCES - VARNISH (Cache Layer)
+# ============================================
+VARNISH_CPU_LIMIT=4
+VARNISH_CPU_RESERVATION=2
+VARNISH_MEM_LIMIT=8G
+VARNISH_MEM_RESERVATION=4G
 
 # ============================================
 # RESOURCES - FUSEKI (SPARQL Endpoint)
@@ -62,8 +67,6 @@ ATON_MEM_LIMIT=8G
 ATON_MEM_RESERVATION=4G
 ```
 
-**Key variable**: `ATON_VR_PORT=8083` is the HTTPS port that Nginx will proxy to.
-
 ## Nginx Configuration
 
 Create `/etc/nginx/sites-available/projects`:
@@ -74,9 +77,13 @@ server {
     root /var/www/vidilab;
     index index.html;
 
-    # MELODY API
+    # Pass Varnish cache headers to browser (only for normal mode)
+    add_header X-Cache $upstream_http_x_cache always;
+    add_header X-Cache-Hits $upstream_http_x_cache_hits always;
+
+    # MELODY API (must come BEFORE /aldrovandi/)
     location /aldrovandi/melodycall/ {
-        proxy_pass http://127.0.0.1:5010/melody/;
+        proxy_pass http://127.0.0.1:8085/melody/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -85,50 +92,72 @@ server {
 
     # MELODY static files
     location /melody/static/ {
-        proxy_pass http://127.0.0.1:5010/melody/static/;
+        proxy_pass http://127.0.0.1:8085/melody/static/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
 
-    # ATON framework resources
+    # ATON framework resources (via Varnish cache)
     location /res/ {
-        proxy_pass https://127.0.0.1:8083/res/;
+        proxy_pass http://127.0.0.1:8085/res/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
-        proxy_ssl_verify off;
     }
 
     location /dist/ {
-        proxy_pass https://127.0.0.1:8083/dist/;
+        proxy_pass http://127.0.0.1:8085/dist/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
-        proxy_ssl_verify off;
     }
 
     location /vendors/ {
-        proxy_pass https://127.0.0.1:8083/vendors/;
+        proxy_pass http://127.0.0.1:8085/vendors/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
-        proxy_ssl_verify off;
     }
 
-    # Aldrovandi project - Direct to ATON HTTPS
-    location /a/aldrovandi/ {
+    # ============================================
+    # VR MODE - Direct HTTPS to ATON:8083
+    # ============================================
+    location /aldrovandi-vr/ {
         proxy_pass https://127.0.0.1:8083/a/aldrovandi/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # Disable SSL verification for self-signed certificate
         proxy_ssl_verify off;
+    }
+
+    location /a/aldrovandi-vr/ {
+        proxy_pass https://127.0.0.1:8083/a/aldrovandi/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # Disable SSL verification for self-signed certificate
+        proxy_ssl_verify off;
+    }
+
+    # ============================================
+    # NORMAL MODE - Via Varnish cache
+    # ============================================
+    location /a/aldrovandi/ {
+        proxy_pass http://127.0.0.1:8085/a/aldrovandi/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 
     location /aldrovandi/ {
-        proxy_pass https://127.0.0.1:8083/a/aldrovandi/;
+        proxy_pass http://127.0.0.1:8085/a/aldrovandi/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_ssl_verify off;
     }
 
     # SSL configuration
@@ -147,17 +176,26 @@ server {
 }
 ```
 
-## Configuration Notes
+## Routing Logic
 
-**Why `proxy_ssl_verify off`?**
-- ATON:8083 uses a self-signed certificate for internal communication
-- Nginx must disable SSL verification for the backend connection
-- The external connection (browser → Nginx) still uses valid Let's Encrypt certificate
+**Normal Mode** (cached, optimized for web):
+```
+https://projects.vidilab.unibo.it/aldrovandi/
+→ Nginx:443 → Varnish:8085 → ATON:8080 (HTTP)
+✓ Cache enabled (fast repeat visits)
+✓ No HTTPS overhead on backend
+```
 
-**No Varnish Cache:**
-- This configuration prioritizes simplicity and WebXR compatibility
-- All traffic goes directly to ATON HTTPS backend
-- For future caching needs, consider adding Varnish between Nginx and ATON:8080 (HTTP)
+**VR Mode** (direct HTTPS, WebXR enabled):
+```
+https://projects.vidilab.unibo.it/aldrovandi-vr/
+→ Nginx:443 → ATON:8083 (HTTPS direct)
+✓ WebXR/VR features enabled
+✓ Bypasses cache
+✓ Same content as normal mode
+```
+
+Both URLs point to the same ATON content (`/a/aldrovandi/`), just different routing paths.
 
 ## Apply Configuration
 
