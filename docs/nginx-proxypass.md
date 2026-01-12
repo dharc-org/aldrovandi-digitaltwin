@@ -1,11 +1,13 @@
 # Nginx Configuration for Aldrovandi Digital Twin
 
-This guide explains how to configure Nginx as a reverse proxy to route traffic through Varnish for caching in production.
+This guide explains how to configure Nginx as a reverse proxy to route traffic through Varnish for caching in production, with conditional routing for VR mode.
 
 ## Architecture
 
 ```
-Browser → Nginx:443 (SSL) → Varnish:8085 (cache) → ATON:8081 / MELODY:5010
+Browser → Nginx:443 (SSL) → 
+    ├─ Normal mode → Varnish:8085 (cache) → ATON:8081
+    └─ VR mode (?mode=vr) → ATON:8083 (HTTPS direct, bypass cache)
 ```
 
 ## Production Environment (.env)
@@ -24,6 +26,7 @@ VARNISH_PORT=8085
 FUSEKI_PORT=3030
 MELODY_PORT=5010
 ATON_PORT=8081
+ATON_VR_PORT=8083
 
 # ============================================
 # RESOURCES - VARNISH (Cache Layer)
@@ -62,7 +65,9 @@ ATON_MEM_LIMIT=8G
 ATON_MEM_RESERVATION=4G
 ```
 
-**Key variable**: `VARNISH_PORT=8085` must match the port in Nginx configuration below.
+**Key variables**: 
+- `VARNISH_PORT=8085` must match the port in Nginx configuration below
+- `ATON_VR_PORT=8083` is the HTTPS port for VR mode
 
 ## Nginx Configuration
 
@@ -113,21 +118,43 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
     }
 
-    # Aldrovandi project paths
+    # Aldrovandi project paths (with VR mode routing)
     location /a/aldrovandi/ {
-        proxy_pass http://127.0.0.1:8085/a/aldrovandi/;
+        # Default: route through Varnish cache
+        set $backend "http://127.0.0.1:8085";
+        
+        # VR Mode: bypass cache, direct to ATON HTTPS
+        if ($arg_mode = "vr") {
+            set $backend "https://127.0.0.1:8083";
+        }
+        
+        proxy_pass $backend/a/aldrovandi/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # Disable SSL verification for self-signed certificate
+        proxy_ssl_verify off;
     }
 
     location /aldrovandi/ {
-        proxy_pass http://127.0.0.1:8085/a/aldrovandi/;
+        # Default: route through Varnish cache
+        set $backend "http://127.0.0.1:8085";
+        
+        # VR Mode: bypass cache, direct to ATON HTTPS
+        if ($arg_mode = "vr") {
+            set $backend "https://127.0.0.1:8083";
+        }
+        
+        proxy_pass $backend/a/aldrovandi/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # Disable SSL verification for self-signed certificate
+        proxy_ssl_verify off;
     }
 
     # SSL configuration
@@ -146,6 +173,24 @@ server {
 }
 ```
 
+## VR Mode Routing Logic
+
+The configuration uses conditional routing based on the `mode` query parameter:
+
+**Normal access** (cached via Varnish):
+```
+https://projects.vidilab.unibo.it/aldrovandi/
+→ Nginx → Varnish:8085 → ATON:8081
+```
+
+**VR Mode access** (direct HTTPS, bypasses cache):
+```
+https://projects.vidilab.unibo.it/aldrovandi/?mode=vr
+→ Nginx → ATON:8083 (HTTPS)
+```
+
+The `proxy_ssl_verify off` directive is required because ATON uses a self-signed certificate for internal communication.
+
 ## Apply Configuration
 
 ```bash
@@ -159,14 +204,45 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-## Verify Caching
+## Verify Routing
 
-Check if Varnish is caching resources:
-
+**Test normal mode (should show cache headers):**
 ```bash
-curl -I https://projects.vidilab.unibo.it/aldrovandi/content/models/room1/scene.json
+curl -I https://projects.vidilab.unibo.it/aldrovandi/
 ```
 
-Look for these headers in the response:
-- `X-Cache: HIT` (cached) or `X-Cache: MISS` (not cached)
-- `X-Cache-Hits: N` (number of times served from cache)
+Look for:
+- `X-Cache: HIT` or `X-Cache: MISS` (Varnish headers)
+
+**Test VR mode (should bypass cache):**
+```bash
+curl -I https://projects.vidilab.unibo.it/aldrovandi/?mode=vr
+```
+
+No `X-Cache` headers = direct ATON connection.
+
+## Troubleshooting
+
+### SSL verification error
+
+If you see errors like `SSL certificate problem: self signed certificate`:
+
+Verify `proxy_ssl_verify off;` is present in both `/aldrovandi/` locations.
+
+### VR mode not routing correctly
+
+Check Nginx error logs:
+```bash
+sudo tail -f /var/log/nginx/error.log
+```
+
+Verify ATON HTTPS is running:
+```bash
+docker compose logs aton | grep "HTTPS ATON"
+```
+
+Should see:
+```
+HTTPS ATON up and running!
+- OFFLINE: https://localhost:8083
+```
