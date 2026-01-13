@@ -2,7 +2,7 @@
 
 ### Logs
 ```bash
-docker compose logs -f varnish
+docker compose logs -f apache
 docker compose logs -f aton
 docker compose logs -f melody
 docker compose logs -f fuseki
@@ -35,7 +35,6 @@ docker compose down --rmi all -v
 ```
 
 ## Useful commands for Apple Silicon
-
 ```bash
 # Logs
 docker compose -f docker-compose-arm.yml logs -f
@@ -71,7 +70,6 @@ Linux is case-sensitive. If the JSONs request `.GLB` but the files are `.glb`, r
 
 ### GPG/signature error on macOS Apple Silicon
 If during the build you see errors like "At least one invalid signature was encountered", clean the Docker cache:
-
 ```bash
 docker builder prune -a -f
 docker system prune -a -f

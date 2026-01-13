@@ -23,7 +23,7 @@ if [ -n "$SERVER_HOST" ]; then
     echo "Configurazione URL MELODY..."
     
     # Usa MELODY_PUBLIC_PORT se definita, altrimenti VARNISH_PORT, altrimenti MELODY_PORT
-    PUBLIC_PORT="${MELODY_PUBLIC_PORT:-${VARNISH_PORT:-$MELODY_PORT}}"
+    PUBLIC_PORT="${MELODY_PUBLIC_PORT:-$MELODY_PORT}"
     
     # Base path (es: /aldrovandi) - default vuoto
     BASE_PATH="${BASE_PATH:-}"

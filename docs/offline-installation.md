@@ -5,13 +5,11 @@ If you need to deploy on an INTEL machine, for example Windows 11 without intern
 ### On the Linux server (source)
 
 #### 1. Build all images
-
 ```bash
 docker compose build --no-cache
 ```
 
 #### 2. Verify the created images
-
 ```bash
 docker images | grep aldrovandi
 ```
@@ -21,20 +19,18 @@ Expected output:
 aldrovandi/fuseki    local    ...
 aldrovandi/melody    local    ...
 aldrovandi/aton      local    ...
-aldrovandi/varnish   local    ...
+aldrovandi/apache    local    ...
 ```
 
 #### 3. Export the images as .tar files
-
 ```bash
 docker save aldrovandi/fuseki:local -o aldrovandi-fuseki.tar
 docker save aldrovandi/melody:local -o aldrovandi-melody.tar
 docker save aldrovandi/aton:local -o aldrovandi-aton.tar
-docker save aldrovandi/varnish:local -o aldrovandi-varnish.tar
+docker save aldrovandi/apache:local -o aldrovandi-apache.tar
 ```
 
 #### 4. (Optional) Compress to save space
-
 ```bash
 gzip *.tar
 ```
@@ -44,23 +40,22 @@ This creates much smaller `.tar.gz` files.
 #### 5. Prepare the files to copy
 
 Copy to USB drive:
-
 ```
 USB/
 ├── aldrovandi-fuseki.tar.gz
 ├── aldrovandi-melody.tar.gz
 ├── aldrovandi-aton.tar.gz
-├── aldrovandi-varnish.tar.gz
+├── aldrovandi-apache.tar.gz
 ├── aldrovandi-ecosystem/
 │   ├── docker-compose.yml
 │   ├── .env
+│   ├── apache/
 │   ├── aton/
 │   ├── melody/
 │   ├── fuseki/
-│   ├── varnish/
-│   └── data/
+│   ├── data/
 │   └── aton-content/
-         └── (all 3D contents, audio, images)
+│        └── (all 3D contents, audio, images)
 ```
 
 ---
@@ -74,12 +69,11 @@ USB/
 #### 1. Open PowerShell as administrator
 
 #### 2. Import the Docker images
-
 ```powershell
 docker load -i aldrovandi-fuseki.tar
 docker load -i aldrovandi-melody.tar
 docker load -i aldrovandi-aton.tar
-docker load -i aldrovandi-varnish.tar
+docker load -i aldrovandi-apache.tar
 ```
 
 If you have the compressed `.tar.gz` files:
@@ -87,13 +81,12 @@ If you have the compressed `.tar.gz` files:
 docker load -i aldrovandi-fuseki.tar.gz
 docker load -i aldrovandi-melody.tar.gz
 docker load -i aldrovandi-aton.tar.gz
-docker load -i aldrovandi-varnish.tar.gz
+docker load -i aldrovandi-apache.tar.gz
 ```
 
 Docker reads gzip files directly.
 
 #### 3. Verify the images are loaded
-
 ```powershell
 docker images | findstr aldrovandi
 ```
@@ -105,22 +98,22 @@ Copy `aldrovandi-ecosystem/` wherever you prefer, for example:
 C:\aldrovandi-ecosystem\
 ```
 
-
 #### 5. Configure the .env file
 
-Edit `C:\aldrovandi-ecosystem\.env`:
+Edit `C:\aldrovandi-ecosystem\.env` and set `SERVER_HOST`:
 
-Set the desired values and modify what you need.
+| Mode | SERVER_HOST |
+|------|-------------|
+| KIOSK (local) | `127.0.0.1` |
+| VR (headset) | Your LAN IP (es: `192.168.1.100`) |
 
 #### 6. Start the containers
-
 ```powershell
 cd C:\aldrovandi-ecosystem
 docker compose up -d
 ```
 
 #### 7. Verify everything is running
-
 ```powershell
 docker ps
 ```
@@ -131,30 +124,9 @@ You should see 4 containers running.
 
 ## Access
 
-- **Via Varnish (recommended)**: `http://SERVER_HOST/a/aldrovandi`
-- **ATON direct**: `http://SERVER_HOST:8080/a/aldrovandi`
-- **MELODY direct**: `http://SERVER_HOST:5010/melody/`
-- **Fuseki**: `http://SERVER_HOST:3030/`
+**KIOSK:** `https://127.0.0.1/a/aldrovandi/?usebackup=true&mode=kiosk`
 
----
-
-## Varnish Cache
-
-Configured TTLs:
-- CSS/JS/fonts: 7 days
-- 3D assets (.gltf, .glb, .obj): 14 days
-- Audio/Video: 7 days
-- JSON/API: 5 minutes
-- HTML: 1 minute
-
-Check cache (response header):
-- `X-Cache: HIT` = served from cache
-- `X-Cache: MISS` = passed to backend
-
-Clear cache:
-```bash
-docker exec aldrovandi-varnish varnishadm "ban req.url ~ ."
-```
+**VR Mode:** `https://YOUR_LAN_IP/a/aldrovandi/?usebackup=true`
 
 ---
 
@@ -162,7 +134,7 @@ docker exec aldrovandi-varnish varnishadm "ban req.url ~ ."
 
 ### Logs
 ```bash
-docker compose logs -f varnish
+docker compose logs -f apache
 docker compose logs -f aton
 docker compose logs -f melody
 docker compose logs -f fuseki
