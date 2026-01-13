@@ -2,143 +2,89 @@
 
 Docker stack for the Aldrovandi DigitalTwin project.
 
-
-Services:
-
+**Services:**
 - **Fuseki**: SPARQL endpoint with chad-kg dataset
 - **MELODY**: Dashboard API (Python/Flask + Gunicorn)
 - **ATON**: 3D Framework (Node.js)
-  - Port 8080: HTTP standard access
-  - Port 8083: HTTPS for VR Mode (self-signed certificate)
-- **Apache**: 
+- **Apache**: Reverse Proxy con SSL (HTTPS)
 
 ---
 
-## VR Mode Access
+## Setup on INTEL processors
 
-For VR headset visualization, ATON provides a dedicated HTTPS endpoint on port 8083.
-
-**Access from VR headset:**
-```
-https://our_local_IP_address/a/aldrovandi/?usebackup=true
-```
-
----
-
-## Offline install with local images
-
-For deploying the Digital Twin on an offline server, check out:
-./docs/offline-installation.md
-
-
-
-## Setup on INTEL processors (with internet access)
-
-### 1. Configure the environment
-
-```bash
-cp .env.example .env
-vim .env
-```
-
-Edit everything you need in **.env** depending on your pc/server hardware availability.
-
-### 2. Add the data
-
-There are some custom files we need to grab from external sources, specifically the TTL files and the aldrovandi aton files.
-
-First we need to add the new and updated TTLs (if available), so:
+### 1. Add the data
 
 - TTL files in `./data/`:
   - `chad_kg.ttl`
   - `chad-ap.ttl`
 
-Then we need to download the aton files for the aldrovandi project and put them in the aton-content folder, so:
-
 - Aldrovandi contents in `./aton-content/`
 
-### 3. Build the images
-
-Now we can proceed with creating the images, this procedure needs to be repeated every time we change something in the entrypoints or modify the ports.
-
+### 2. Configure the environment
 ```bash
-docker compose build --no-cache
+cp .env.example .env
 ```
 
-### 4. Start the containers
+Edit `.env` based on your setup:
 
-Now we're ready to fire up our project, run the command:
+| Mode | SERVER_HOST |
+|------|-------------|
+| KIOSK (local) | `127.0.0.1` |
+| VR (headset) | Your LAN IP (es: `192.168.1.100`) |
 
+### 3. Build and start
 ```bash
+docker compose build --no-cache
 docker compose up -d
 ```
 
-Wait a couple of minutes, then you can reach our main service at this link:
+### Access URLs
 
-**KIOSK access (HTTPS):**
-https://127.0.0.1/a/aldrovandi/?usebackup=true&mode=kiosk
+**KIOSK:** https://127.0.0.1/a/aldrovandi/?usebackup=true&mode=kiosk
 
-**VR Mode access (HTTPS):**
-https://our_IP_address/a/aldrovandi/?usebackup=true
+**VR Mode:** https://YOUR_LAN_IP/a/aldrovandi/?usebackup=true
+
+### Switching between modes
+
+To switch from KIOSK to VR (or vice versa):
+
+1. Edit `SERVER_HOST` in `.env`
+2. Restart containers:
+```bash
+docker compose down
+docker compose up -d
+```
 
 ---
 
-## Setup on ARM processors (like macOS Apple Silicon)
+## Setup on ARM processors (Apple Silicon, Raspberry Pi)
 
-If you're using a Mac with Apple Silicon processor, you need to use the `docker-compose-arm.yml` file which is optimized for ARM architecture. Same goes if you're using a raspberry or any computer with an ARM processor, you need to use this setup.
-
-### 1. Configure the environment
-
-```bash
-cp .env.example .env
-vim .env
-```
-
-Edit everything you need in **.env** depending on your pc/server hardware availability.
-
-### 2. Add the data
-
-There are some custom files we need to grab from external sources, specifically the TTL files and the aldrovandi aton files.
-
-First we need to add the new and updated TTLs (if available), so:
+### 1. Add the data
 
 - TTL files in `./data/`:
   - `chad_kg.ttl`
   - `chad-ap.ttl`
 
-Then we need to download the aton files for the aldrovandi project and put them in the aton-content folder, so:
-
 - Aldrovandi contents in `./aton-content/`
 
-### 3. Build the images (ARM native)
-
-Now we can proceed with creating the images, this procedure needs to be repeated every time we change something in the entrypoints or modify the ports.
-
+### 2. Configure the environment
 ```bash
-docker compose -f docker-compose-arm.yml build --no-cache
+cp .env.example .env
 ```
 
-### 4. Start the containers
+Edit `.env` - same configuration as Intel (see table above).
 
-Now we're ready to fire up our project, run the command:
-
+### 3. Build and start
 ```bash
+docker compose -f docker-compose-arm.yml build --no-cache
 docker compose -f docker-compose-arm.yml up -d
 ```
 
-Wait a couple of minutes, then you can reach our main service at this link:
+Access URLs and mode switching are identical to Intel setup.
 
-**KIOSK access (HTTPS):**
-https://127.0.0.1/a/aldrovandi/?usebackup=true&mode=kiosk
-
-**VR Mode access (HTTPS):**
-https://our_IP_address/a/aldrovandi/?usebackup=true
-
+---
 
 ## Other documentation
 
-For deploying the Digital Twin on an offline server, check out:
-./docs/offline-installation.md
-
-For useful commands and troubleshooting:
-./docs/useful-cmd.md
+- Offline installation: `./docs/offline-installation.md`
+- Useful commands: `./docs/useful-cmd.md`
