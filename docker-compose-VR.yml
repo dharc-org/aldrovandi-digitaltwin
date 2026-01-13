@@ -1,0 +1,134 @@
+services:
+  # ============================================
+  # APACHE - Reverse Proxy con SSL
+  # ============================================
+  apache:
+    build:
+      context: ./apache
+      dockerfile: Dockerfile
+    image: aldrovandi/apache:local
+    container_name: aldrovandi-apache
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - aton
+      - melody
+    environment:
+      - SERVER_HOST=${SERVER_HOST}
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '${APACHE_CPU_LIMIT:-2}'
+          memory: ${APACHE_MEM_LIMIT:-2G}
+        reservations:
+          cpus: '${APACHE_CPU_RESERVATION:-1}'
+          memory: ${APACHE_MEM_RESERVATION:-1G}
+
+  # ============================================
+  # FUSEKI - SPARQL Endpoint
+  # ============================================
+  fuseki:
+    build:
+      context: ./fuseki
+      dockerfile: Dockerfile
+    image: aldrovandi/fuseki:local
+    container_name: aldrovandi-fuseki
+    ports:
+      - "${FUSEKI_PORT:-3030}:3030"
+    volumes:
+      - ./data:/staging:ro
+      - fuseki-data:/fuseki/databases
+    environment:
+      - JAVA_OPTIONS=-Xmx${FUSEKI_JAVA_XMX:-2g} -Xms${FUSEKI_JAVA_XMS:-1g}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3030/$/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '${FUSEKI_CPU_LIMIT:-4}'
+          memory: ${FUSEKI_MEM_LIMIT:-8G}
+        reservations:
+          cpus: '${FUSEKI_CPU_RESERVATION:-2}'
+          memory: ${FUSEKI_MEM_RESERVATION:-4G}
+
+  # ============================================
+  # MELODY - Dashboard API
+  # ============================================
+  melody:
+    build:
+      context: ./melody
+      dockerfile: Dockerfile
+    image: aldrovandi/melody:local
+    container_name: aldrovandi-melody
+    expose:
+      - "5000"
+    depends_on:
+      fuseki:
+        condition: service_healthy
+    environment:
+      - SPARQL_ENDPOINT=http://fuseki:3030/chad-kg/sparql
+      - SERVER_HOST=${SERVER_HOST}
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '${MELODY_CPU_LIMIT:-1}'
+          memory: ${MELODY_MEM_LIMIT:-2G}
+        reservations:
+          cpus: '${MELODY_CPU_RESERVATION:-1}'
+          memory: ${MELODY_MEM_RESERVATION:-1G}
+
+  # ============================================
+  # ATON - Framework 3D/Web
+  # ============================================
+  aton:
+    build:
+      context: ./aton
+      dockerfile: Dockerfile
+    image: aldrovandi/aton:local
+    container_name: aldrovandi-aton
+    expose:
+      - "8080"
+      - "8083"
+    volumes:
+      - ./aton-content:/app/aton/wapps/aldrovandi/content
+      - ./aton-ssl:/app/aton/ssl
+    depends_on:
+      fuseki:
+        condition: service_healthy
+    environment:
+      - SPARQL_ENDPOINT=http://fuseki:3030/chad-kg/sparql
+      - SERVER_HOST=${SERVER_HOST}
+      - MELODY_PORT=443
+      - MELODY_PUBLIC_PORT=443
+      - BASE_PATH=${BASE_PATH:-}
+      - MELODY_PATH=${MELODY_PATH:-/melody}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '${ATON_CPU_LIMIT:-4}'
+          memory: ${ATON_MEM_LIMIT:-8G}
+        reservations:
+          cpus: '${ATON_CPU_RESERVATION:-2}'
+          memory: ${ATON_MEM_RESERVATION:-4G}
+
+volumes:
+  fuseki-data:
+    driver: local
+
+networks:
+  default:
+    name: aldrovandi-network
