@@ -10,7 +10,7 @@ Services:
 - **ATON**: 3D Framework (Node.js)
   - Port 8080: HTTP standard access
   - Port 8083: HTTPS for VR Mode (self-signed certificate)
-- **Varnish**: Cache layer for static resources (CSS, JS, 3D assets, images)
+- **Apache**: 
 
 ---
 
@@ -20,18 +20,8 @@ For VR headset visualization, ATON provides a dedicated HTTPS endpoint on port 8
 
 **Access from VR headset:**
 ```
-https://192.168.1.X:8083/a/aldrovandi
+https://our_local_IP_address/a/aldrovandi/?usebackup=true
 ```
-
-⚠️ **Browser Security Warning**: The self-signed certificate will trigger a security warning.
-- Click **"Advanced"** → **"Proceed to site"** (or similar based on browser)
-- This is expected behavior for LAN deployments
-
-**Technical Details:**
-- Certificate is auto-generated on first startup
-- Stored in `./aton-ssl/` for persistence across restarts
-- Valid for 3650 days
-- VR Mode bypasses Varnish cache (direct ATON access)
 
 ---
 
@@ -85,11 +75,11 @@ docker compose up -d
 
 Wait a couple of minutes, then you can reach our main service at this link:
 
-**Standard access (HTTP):**
-http://127.0.0.1/a/aldrovandi
+**KIOSK access (HTTPS):**
+https://127.0.0.1/a/aldrovandi/?usebackup=true&mode=kiosk
 
 **VR Mode access (HTTPS):**
-https://127.0.0.1:8083/a/aldrovandi
+https://our_IP_address/a/aldrovandi/?usebackup=true
 
 ---
 
@@ -138,11 +128,11 @@ docker compose -f docker-compose-arm.yml up -d
 
 Wait a couple of minutes, then you can reach our main service at this link:
 
-**Standard access (HTTP):**
-http://127.0.0.1/a/aldrovandi
+**KIOSK access (HTTPS):**
+https://127.0.0.1/a/aldrovandi/?usebackup=true&mode=kiosk
 
 **VR Mode access (HTTPS):**
-https://127.0.0.1:8083/a/aldrovandi
+https://our_IP_address/a/aldrovandi/?usebackup=true
 
 
 ## Other documentation
