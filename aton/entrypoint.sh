@@ -23,7 +23,7 @@ if [ -n "$SERVER_HOST" ]; then
     echo "Configurazione URL MELODY..."
     
     # Usa MELODY_PUBLIC_PORT se definita, altrimenti VARNISH_PORT, altrimenti MELODY_PORT
-    PUBLIC_PORT="${MELODY_PUBLIC_PORT:-${VARNISH_PORT:-$MELODY_PORT}}"
+    PUBLIC_PORT="${MELODY_PUBLIC_PORT:-$MELODY_PORT}"
     
     # Base path (es: /aldrovandi) - default vuoto
     BASE_PATH="${BASE_PATH:-}"
@@ -112,6 +112,34 @@ else
 fi
 
 # ============================================
+# SETUP HTTPS per VR Mode (porta 8083)
+# ============================================
+SSL_DIR="/app/aton/ssl"
+ATON_CERTS_DIR="/app/aton/config/certs"
+
+mkdir -p "$SSL_DIR"
+mkdir -p "$ATON_CERTS_DIR"
+
+if [ ! -f "$SSL_DIR/server.key" ] || [ ! -f "$SSL_DIR/server.crt" ]; then
+    echo "Generazione certificato SSL self-signed per VR Mode..."
+    openssl req -x509 -newkey rsa:2048 -nodes \
+        -keyout "$SSL_DIR/server.key" \
+        -out "$SSL_DIR/server.crt" \
+        -days 3650 \
+        -subj "/CN=aldrovandi-vr/O=Aldrovandi DigitalTwin/C=IT" \
+        2>/dev/null
+    
+    chmod 600 "$SSL_DIR/server.key"
+    chmod 644 "$SSL_DIR/server.crt"
+    echo "✅ Certificato SSL generato: $SSL_DIR/server.crt"
+fi
+
+# Copia certificati nella directory che ATON si aspetta
+cp "$SSL_DIR/server.key" "$ATON_CERTS_DIR/server.key"
+cp "$SSL_DIR/server.crt" "$ATON_CERTS_DIR/server.crt"
+echo "✅ Certificati copiati in $ATON_CERTS_DIR"
+
+# ============================================
 # FIX CASE SENSITIVITY - crea symlink bidirezionali per .glb/.GLB
 # ============================================
 echo "Creazione symlink per case-insensitivity GLB/glb..."
@@ -143,8 +171,9 @@ else
     echo "ATTENZIONE: cartella content non trovata"
 fi
 
-echo "Avvio ATON su porta 8080 (production)..."
-echo "Accedi a: http://localhost:8080/a/aldrovandi"
+echo "Avvio ATON con supporto HTTPS per VR Mode..."
+echo "Porta HTTP:  8080"
+echo "Porta HTTPS: 8083 (VR Mode)"
 
 # Avvia ATON in production mode
 export NODE_ENV=production
